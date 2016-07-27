@@ -16,6 +16,21 @@
 
 LOCAL_PATH := $(call my-dir)
 
+common_cflags := \
+    -std=c99 \
+    -Os \
+    -Wno-char-subscripts \
+    -Wno-sign-compare \
+    -Wno-string-plus-int \
+    -Wno-uninitialized \
+    -Wno-unused-parameter \
+    -funsigned-char \
+    -ffunction-sections -fdata-sections \
+    -fno-asynchronous-unwind-tables \
+
+toybox_version := $(shell git -C $(LOCAL_PATH) rev-parse --short=12 HEAD 2>/dev/null)-android
+common_cflags += -DTOYBOX_VERSION='"$(toybox_version)"'
+
 #
 # To update:
 #
@@ -194,25 +209,19 @@ LOCAL_SRC_FILES := \
     toys/posix/wc.c \
     toys/posix/xargs.c \
 
-LOCAL_CFLAGS += \
-    -std=c99 \
-    -Os \
-    -Wno-char-subscripts \
-    -Wno-sign-compare \
-    -Wno-string-plus-int \
-    -Wno-uninitialized \
-    -Wno-unused-parameter \
-    -funsigned-char \
-    -ffunction-sections -fdata-sections \
-    -fno-asynchronous-unwind-tables \
-
-toybox_version := $(shell git -C $(LOCAL_PATH) rev-parse --short=12 HEAD 2>/dev/null)-android
-LOCAL_CFLAGS += -DTOYBOX_VERSION='"$(toybox_version)"'
-
+LOCAL_CFLAGS := $(common_cflags)
 LOCAL_CLANG := true
 
 LOCAL_SHARED_LIBRARIES := libcutils libselinux
+LOCAL_MODULE := libtoybox
+include $(BUILD_STATIC_LIBRARY)
 
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES := main.c
+LOCAL_CFLAGS := $(common_cflags)
+LOCAL_CLANG := true
+LOCAL_STATIC_LIBRARIES := libtoybox
+LOCAL_SHARED_LIBRARIES := libcutils libselinux
 LOCAL_MODULE := toybox
 
 # dupes: dd df du ls mount renice
@@ -341,4 +350,28 @@ ALL_TOOLS := \
 # Install the symlinks.
 LOCAL_POST_INSTALL_CMD := $(hide) $(foreach t,$(ALL_TOOLS),ln -sf toybox $(TARGET_OUT)/bin/$(t);)
 
+include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES := main.c
+LOCAL_CFLAGS := $(common_cflags)
+LOCAL_CLANG := true
+
+LOCAL_STATIC_LIBRARIES := \
+    libc \
+    libtoybox \
+    libcutils \
+    libselinux \
+    liblog \
+     libmincrypt
+
+LOCAL_MODULE := toybox_static
+
+LOCAL_MODULE_CLASS := UTILITY_EXECUTABLES
+LOCAL_MODULE_PATH := $(PRODUCT_OUT)/utilities
+LOCAL_MODULE_STEM := toybox
+LOCAL_MODULE_TAGS := optional
+LOCAL_UNSTRIPPED_PATH := $(PRODUCT_OUT)/symbols/utilities
+LOCAL_FORCE_STATIC_EXECUTABLE := true
+LOCAL_PACK_MODULE_RELOCATIONS := false
 include $(BUILD_EXECUTABLE)
